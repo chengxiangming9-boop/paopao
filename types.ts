@@ -1,3 +1,4 @@
+
 export enum BubbleTheme {
   NEBULA = 'NEBULA',
   FOREST = 'FOREST',
@@ -5,6 +6,33 @@ export enum BubbleTheme {
   ABSTRACT = 'ABSTRACT',
   QUANTUM = 'QUANTUM',
   CYBER = 'CYBER'
+}
+
+export enum BubbleElement {
+  WATER = 'WATER', // Melts/Drips
+  FIRE = 'FIRE',   // Evaporates/Gas
+  NEBULA = 'NEBULA', // Evaporates/Gas
+  METAL = 'METAL', // Freezes/Shatters
+  ICE = 'ICE'      // Freezes/Shatters
+}
+
+export enum BubbleState {
+  FLOATING = 'FLOATING',
+  GROWING = 'GROWING',      // Being blown by hand
+  MERGING = 'MERGING',      // Being attracted to another bubble
+  FROZEN = 'FROZEN',        // Ice effect: Heavy, falling, rigid
+  MELTING = 'MELTING',      // Transition to water droplets
+  EVAPORATING = 'EVAPORATING', // Transition to gas
+  SHATTERED = 'SHATTERED',  // Broken on floor
+  POPPING = 'POPPING'
+}
+
+export enum GestureType {
+  NONE = 'NONE',
+  POINT = 'POINT',         // Index finger only (Trigger Element)
+  OPEN_HAND = 'OPEN_HAND', // All fingers out (Wind/Trail)
+  PINCH = 'PINCH',         // Index + Thumb (Blow bubble)
+  FIST = 'FIST'            // Closed hand
 }
 
 export interface Vector2 {
@@ -31,14 +59,15 @@ export interface Bubble {
   vx: number;
   vy: number;
   theme: BubbleTheme;
+  element: BubbleElement;
   hue: number;
-  phase: number; // For animation pulsing
+  phase: number;
   wobble: number;
-  popping: boolean;
-  popProgress: number;
-  contentSeed: number; // Random seed for inner drawing
+  state: BubbleState;
+  stateTimer: number;
+  contentSeed: number;
   mass: number;
-  rotation: number; // Angular position
+  rotation: number;
   rotationSpeed: number;
 }
 
@@ -46,6 +75,10 @@ export interface HandData {
   landmarks: Vector2[]; // Normalized 0-1
   worldLandmarks: { x: number; y: number; z: number }[];
   handedness: 'Left' | 'Right';
+  gesture: GestureType;
+  pinchStrength: number; // 0-1
+  center: Vector2;
+  velocity: Vector2; // Hand movement speed
 }
 
 export interface AppMode {

@@ -1,10 +1,16 @@
-import { BubbleTheme } from "./types";
+
+import { BubbleTheme, BubbleElement } from "./types";
 
 export const GRAVITY = 0.05;
-export const AIR_RESISTANCE = 0.99;
-export const BUBBLE_SPAWN_RATE = 60; // Frames between spawns
-export const MAX_BUBBLES = 40;
+export const AIR_RESISTANCE = 0.98;
+export const BUBBLE_SPAWN_RATE = 50;
+export const MAX_BUBBLES = 35;
 export const INTERACTION_RADIUS_MULTIPLIER = 1.2;
+
+// Interaction Thresholds
+export const VELOCITY_SWIPE_THRESHOLD = 20; // Pixels per frame
+export const VELOCITY_SYMBIOSIS_THRESHOLD = 5; // Pixels per frame
+export const SYMBIOSIS_ATTACH_DIST = 40;
 
 // MediaPipe Hands Landmark Indices
 export const WRIST = 0;
@@ -49,4 +55,12 @@ export const THEME_COLORS: Record<BubbleTheme, { main: string; glow: string; inn
     glow: 'rgba(255, 0, 255, 0.8)',
     inner: ['#FF00FF', '#00FF00', '#FFFF00']
   }
+};
+
+export const ELEMENT_COLORS: Record<BubbleElement, string[]> = {
+    [BubbleElement.WATER]: ['#00FFFF', '#0077FF', '#FFFFFF'],
+    [BubbleElement.FIRE]: ['#FF3300', '#FFCC00', '#440000'],
+    [BubbleElement.NEBULA]: ['#FF00FF', '#9900FF', '#000066'],
+    [BubbleElement.METAL]: ['#E0E0E0', '#999999', '#FFFFFF'],
+    [BubbleElement.ICE]: ['#E0F7FA', '#B2EBF2', '#FFFFFF']
 };

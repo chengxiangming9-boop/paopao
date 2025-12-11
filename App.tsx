@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import MicroverseCanvas from './components/MicroverseCanvas';
 import { AppMode, BubbleTheme } from './types';
@@ -54,9 +55,9 @@ function App() {
         <header className="flex justify-between items-start">
           <div className="pointer-events-auto">
             <h1 className="text-3xl font-light tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-blue-100 to-purple-200 opacity-90">
-              MICROVERSE
+              微宇宙 · 泡泡
             </h1>
-            <p className="text-xs text-blue-300/60 mt-1 uppercase tracking-widest">Tactile Visualization System</p>
+            <p className="text-xs text-blue-300/60 mt-1 uppercase tracking-widest">视觉交互系统</p>
           </div>
           
           <div className="pointer-events-auto flex gap-2">
@@ -76,22 +77,55 @@ function App() {
           </div>
         </header>
 
-        {/* Footer Instructions */}
-        <footer className="text-center opacity-0 hover:opacity-100 transition-opacity duration-500 delay-1000">
-             <div className="inline-block px-6 py-3 bg-black/40 backdrop-blur-lg rounded-2xl border border-white/5">
-                <div className="flex items-center gap-6 text-sm text-gray-300">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xl">👉</span>
-                        <span>Use <b className="text-white">TWO FINGERS</b> (Index+Middle) to Aim</span>
+        {/* Instructions Sidebar */}
+        <div className="absolute right-6 top-24 w-64 pointer-events-auto space-y-4">
+             <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-xl p-4 text-sm space-y-3">
+                <h3 className="text-blue-300 uppercase tracking-widest text-xs font-bold border-b border-white/10 pb-2">交互手势</h3>
+                
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-lg">🤏</div>
+                    <div>
+                        <p className="font-bold text-white/90">捏合 (Pinch)</p>
+                        <p className="text-xs text-white/50">吹出新泡泡</p>
                     </div>
-                    <div className="w-px h-4 bg-white/20"></div>
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-                        <span><b className="text-white">POKE</b> to Pop</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-lg">☝️</div>
+                    <div>
+                        <p className="font-bold text-white/90">单指 (Point)</p>
+                        <p className="text-xs text-white/50">戳: 随机特效 (冰冻/融化/破碎)</p>
+                        <p className="text-xs text-white/50">划: 快速连破</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-lg">✋</div>
+                    <div>
+                        <p className="font-bold text-white/90">张手 (Open Hand)</p>
+                        <p className="text-xs text-white/50">移动带出一串泡泡</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-lg">✊</div>
+                    <div>
+                        <p className="font-bold text-white/90">握拳 (Fist)</p>
+                        <p className="text-xs text-white/50">强力反弹泡泡</p>
                     </div>
                 </div>
              </div>
-        </footer>
+             
+             <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-xl p-4 text-sm">
+                <h3 className="text-purple-300 uppercase tracking-widest text-xs font-bold border-b border-white/10 pb-2 mb-2">物理特性</h3>
+                <p className="text-xs text-white/60 leading-relaxed">
+                    泡泡接触合并。<br/>
+                    冰冻后坠落摔碎。<br/>
+                    明亮通透的虹光流转。
+                </p>
+             </div>
+        </div>
+
       </div>
 
     </div>
