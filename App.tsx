@@ -54,10 +54,10 @@ function App() {
         {/* Header */}
         <header className="flex justify-between items-start">
           <div className="pointer-events-auto">
-            <h1 className="text-3xl font-light tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-blue-100 to-purple-200 opacity-90">
-              微宇宙 · 泡泡
+            <h1 className="text-4xl font-extralight tracking-[0.2em] bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white opacity-90 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+              空无之涟
             </h1>
-            <p className="text-xs text-blue-300/60 mt-1 uppercase tracking-widest">视觉交互系统</p>
+            <p className="text-[10px] text-blue-200/50 mt-2 uppercase tracking-[0.4em] ml-1">Ripples of Nothingness</p>
           </div>
           
           <div className="pointer-events-auto flex gap-2">
@@ -78,7 +78,7 @@ function App() {
         </header>
 
         {/* Instructions Sidebar */}
-        <div className="absolute right-6 top-24 w-64 pointer-events-auto space-y-4">
+        <div className="absolute right-6 top-28 w-64 pointer-events-auto space-y-4">
              <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-xl p-4 text-sm space-y-3">
                 <h3 className="text-blue-300 uppercase tracking-widest text-xs font-bold border-b border-white/10 pb-2">交互手势</h3>
                 
@@ -94,7 +94,7 @@ function App() {
                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-lg">☝️</div>
                     <div>
                         <p className="font-bold text-white/90">单指 (Point)</p>
-                        <p className="text-xs text-white/50">戳: 随机特效 (冰冻/融化/破碎)</p>
+                        <p className="text-xs text-white/50">戳: 随机特效 (结冰/融化)</p>
                         <p className="text-xs text-white/50">划: 快速连破</p>
                     </div>
                 </div>
@@ -114,15 +114,6 @@ function App() {
                         <p className="text-xs text-white/50">强力反弹泡泡</p>
                     </div>
                 </div>
-             </div>
-             
-             <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-xl p-4 text-sm">
-                <h3 className="text-purple-300 uppercase tracking-widest text-xs font-bold border-b border-white/10 pb-2 mb-2">物理特性</h3>
-                <p className="text-xs text-white/60 leading-relaxed">
-                    泡泡接触合并。<br/>
-                    冰冻后坠落摔碎。<br/>
-                    明亮通透的虹光流转。
-                </p>
              </div>
         </div>
 

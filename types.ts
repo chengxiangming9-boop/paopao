@@ -69,6 +69,7 @@ export interface Bubble {
   mass: number;
   rotation: number;
   rotationSpeed: number;
+  creationTime: number; // Timestamp for spawn protection
 }
 
 export interface HandData {

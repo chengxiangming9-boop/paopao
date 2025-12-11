@@ -24,43 +24,44 @@ export const RING_TIP = 16;
 export const PINKY_MCP = 17;
 export const PINKY_TIP = 20;
 
+// High-Key Colors: Lightness boosted to >80% for "glowing" effect on black
 export const THEME_COLORS: Record<BubbleTheme, { main: string; glow: string; inner: string[] }> = {
   [BubbleTheme.NEBULA]: {
-    main: '260, 100%, 70%',
-    glow: 'rgba(150, 0, 255, 0.4)',
-    inner: ['#FF00CC', '#3300FF', '#00FFFF']
+    main: '260, 100%, 88%', 
+    glow: 'rgba(180, 100, 255, 0.8)',
+    inner: ['#FFCCFF', '#8888FF', '#AAFFFF']
   },
   [BubbleTheme.FOREST]: {
-    main: '120, 80%, 60%',
-    glow: 'rgba(0, 255, 100, 0.3)',
-    inner: ['#00FF00', '#004400', '#AAFF00']
+    main: '140, 95%, 85%',
+    glow: 'rgba(100, 255, 150, 0.7)',
+    inner: ['#CCFFCC', '#88FFAA', '#EEFFCC']
   },
   [BubbleTheme.CRYSTAL]: {
-    main: '200, 90%, 80%',
-    glow: 'rgba(0, 200, 255, 0.5)',
-    inner: ['#FFFFFF', '#AACCFF', '#E0F7FA']
+    main: '190, 100%, 92%',
+    glow: 'rgba(150, 230, 255, 0.9)',
+    inner: ['#FFFFFF', '#DDEEFF', '#E0F7FA']
   },
   [BubbleTheme.ABSTRACT]: {
-    main: '320, 90%, 60%',
-    glow: 'rgba(255, 0, 100, 0.4)',
-    inner: ['#FF5500', '#FFFF00', '#FF0055']
+    main: '330, 100%, 88%',
+    glow: 'rgba(255, 50, 150, 0.8)',
+    inner: ['#FFAA88', '#FFFFAA', '#FF88BB']
   },
   [BubbleTheme.QUANTUM]: {
-    main: '180, 100%, 50%',
-    glow: 'rgba(0, 255, 255, 0.6)',
-    inner: ['#000000', '#FFFFFF', '#00FFCC']
+    main: '180, 100%, 90%',
+    glow: 'rgba(100, 255, 255, 0.9)',
+    inner: ['#CCFFFF', '#FFFFFF', '#AAFFE0']
   },
   [BubbleTheme.CYBER]: {
-    main: '300, 100%, 50%',
-    glow: 'rgba(255, 0, 255, 0.8)',
-    inner: ['#FF00FF', '#00FF00', '#FFFF00']
+    main: '290, 100%, 88%',
+    glow: 'rgba(255, 80, 255, 0.8)',
+    inner: ['#FFCCFF', '#CCFF00', '#FFFFFF']
   }
 };
 
 export const ELEMENT_COLORS: Record<BubbleElement, string[]> = {
-    [BubbleElement.WATER]: ['#00FFFF', '#0077FF', '#FFFFFF'],
-    [BubbleElement.FIRE]: ['#FF3300', '#FFCC00', '#440000'],
-    [BubbleElement.NEBULA]: ['#FF00FF', '#9900FF', '#000066'],
-    [BubbleElement.METAL]: ['#E0E0E0', '#999999', '#FFFFFF'],
-    [BubbleElement.ICE]: ['#E0F7FA', '#B2EBF2', '#FFFFFF']
+    [BubbleElement.WATER]: ['#CCFFFF', '#66BBFF', '#FFFFFF'],
+    [BubbleElement.FIRE]: ['#FFCC00', '#FF6600', '#FFFFFF'],
+    [BubbleElement.NEBULA]: ['#FF88FF', '#CC88FF', '#EEEEFF'],
+    [BubbleElement.METAL]: ['#FFFFFF', '#CCCCCC', '#AAAAAA'],
+    [BubbleElement.ICE]: ['#FFFFFF', '#DDF0FF', '#BBE0FF']
 };
