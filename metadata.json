@@ -1,0 +1,7 @@
+{
+  "name": "Microverse Bubbles",
+  "description": "A tactile visualization system where floating micro-universe bubbles interact with your hands via webcam.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
