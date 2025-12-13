@@ -44,6 +44,21 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
   const spawnTimer = useRef<number>(0);
   const handResults = useRef<HandData[]>([]);
   
+  // Mouse Interaction State
+  const mouseRef = useRef({
+      x: -1000,
+      y: -1000,
+      vx: 0,
+      vy: 0,
+      isDown: false,
+      isRightDown: false, // Track right mouse button
+      startX: 0,
+      startY: 0,
+      isDragging: false,
+      downTime: 0
+  });
+  const mouseTrailRef = useRef<{x: number, y: number} | null>(null);
+  
   // Advanced Smoothing & State Persistence
   const prevHandData = useRef<Map<number, { 
       landmarks: Vector2[], 
@@ -277,6 +292,95 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             maxLife: life
         } as ExtendedParticle);
     }
+  };
+
+  // --- MOUSE EVENT HANDLERS ---
+  const handleMouseDown = (e: React.MouseEvent) => {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Right Click logic
+      if (e.button === 2) {
+          mouseRef.current.isRightDown = true;
+          mouseRef.current.x = x;
+          mouseRef.current.y = y;
+          return;
+      }
+
+      // Left Click logic
+      mouseRef.current.isDown = true;
+      mouseRef.current.startX = x;
+      mouseRef.current.startY = y;
+      mouseRef.current.isDragging = false;
+      mouseRef.current.x = x;
+      mouseRef.current.y = y;
+      mouseRef.current.downTime = Date.now();
+
+      // CLICK INTERACTION: POP BUBBLE
+      // If we click directly on a bubble, pop it immediately.
+      let popped = false;
+      for (let i = bubbles.current.length - 1; i >= 0; i--) {
+          const b = bubbles.current[i];
+          const d = Math.hypot(b.x - x, b.y - y);
+          if (d < b.radius) {
+              createParticles(b, 'POPPING');
+              bubbles.current.splice(i, 1);
+              onExpandUniverse(b.theme);
+              popped = true;
+              break; 
+          }
+      }
+
+      if (!popped) {
+          // LONG PRESS INIT: Start growing a bubble
+          activeBubbleCreation.current = { x, y, radius: 10, timer: 0 };
+      } else {
+          // If we popped something, don't start creating immediately
+          activeBubbleCreation.current = null;
+      }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      mouseRef.current.vx = x - mouseRef.current.x;
+      mouseRef.current.vy = y - mouseRef.current.y;
+      mouseRef.current.x = x;
+      mouseRef.current.y = y;
+
+      if (mouseRef.current.isDown) {
+          const distFromStart = Math.hypot(x - mouseRef.current.startX, y - mouseRef.current.startY);
+          if (distFromStart > 10) { // Small threshold to detect drag vs click/hold
+              mouseRef.current.isDragging = true;
+          }
+      }
+  };
+
+  const handleMouseUp = () => {
+      mouseRef.current.isDown = false;
+      mouseRef.current.isRightDown = false;
+      
+      // If we were growing a single bubble (Long Press), release it now
+      if (activeBubbleCreation.current && !mouseRef.current.isDragging) {
+          const { x, y, radius } = activeBubbleCreation.current;
+          if (radius > 12) {
+             const newBubbles = createBubble(x, y, radius);
+             newBubbles.forEach(b => { b.vy = -2; b.vx = 0; bubbles.current.push(b); });
+          }
+      }
+      
+      activeBubbleCreation.current = null;
+      mouseRef.current.isDragging = false;
+      mouseTrailRef.current = null;
+  };
+
+  const handleMouseLeave = () => {
+      handleMouseUp();
+      mouseRef.current.x = -1000;
+      mouseRef.current.y = -1000;
   };
 
   // --- VISUALIZATION: Holographic Skeleton ---
@@ -778,8 +882,86 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
         }
     });
 
+    // MOUSE INTERACTION UPDATES
+    const { x: mx, y: my, isDown, isRightDown, isDragging } = mouseRef.current;
+    
+    // Repel Logic (RIGHT CLICK DRAG)
+    if (isRightDown) {
+         bubbles.current.forEach(b => {
+            const dx = b.x - mx;
+            const dy = b.y - my;
+            const dist = Math.hypot(dx, dy);
+            const repelRange = 120 + b.radius;
+            
+            if (dist < repelRange && dist > 0) {
+                const nx = dx / dist;
+                const ny = dy / dist;
+                // Slightly weaker repel than Fist
+                const force = Math.pow((1 - dist / repelRange), 2) * 15.0; 
+                b.vx += nx * force;
+                b.vy += ny * force;
+                b.vx *= 0.95;
+                b.vy *= 0.95;
+            }
+        });
+        // Reset trail ref if not dragging
+        mouseTrailRef.current = null;
+    }
+
+    // Drag / Long Press Logic (LEFT CLICK)
+    if (isDown) {
+        if (isDragging) {
+             // 1. Dragging: Cancel "Long Press Grow" if active
+             if (activeBubbleCreation.current) {
+                 activeBubbleCreation.current = null;
+             }
+
+             // 2. Dragging: Generate Trail (Stream)
+             if (!mouseTrailRef.current) mouseTrailRef.current = { x: mx, y: my };
+             
+             const distMoved = Math.hypot(mx - mouseTrailRef.current.x, my - mouseTrailRef.current.y);
+             const spawnStep = 15;
+
+             if (distMoved > spawnStep) {
+                 const count = Math.min(Math.floor(distMoved / spawnStep), 5); 
+                 
+                 for (let s = 1; s <= count; s++) {
+                     if (bubbles.current.length >= MAX_BUBBLES + 10) break;
+                     const t = s / count;
+                     const tx = lerp(mouseTrailRef.current.x, mx, t);
+                     const ty = lerp(mouseTrailRef.current.y, my, t);
+                     
+                     const r = randomRange(15, 25);
+                     const jitter = 5;
+                     
+                     const trailBubble = createBubble(
+                         tx + randomRange(-jitter, jitter), 
+                         ty + randomRange(-jitter, jitter), 
+                         r,
+                         mouseRef.current.vx * 0.1 + (Math.random()-0.5)*1.5,
+                         mouseRef.current.vy * 0.1 + (Math.random()-0.5)*1.5,
+                         true // IS TRAIL
+                     );
+                     bubbles.current.push(...trailBubble);
+                 }
+                 mouseTrailRef.current = { x: mx, y: my };
+             }
+
+        } else {
+             // 3. Long Press: Grow Bubble
+             if (activeBubbleCreation.current) {
+                 activeBubbleCreation.current.x = mx;
+                 activeBubbleCreation.current.y = my;
+                 activeBubbleCreation.current.radius += 1.0;
+                 activeBubbleCreation.current.timer++;
+             }
+        }
+    }
+
+
     const isPinching = handResults.current.some(h => h.gesture === GestureType.PINCH);
-    if (!isPinching && activeBubbleCreation.current) {
+    // Auto-release if pinching stops or mouse isn't down involved
+    if (!isPinching && !isDown && activeBubbleCreation.current) {
          if (activeBubbleCreation.current.radius > 20) {
             const newBubbles = createBubble(activeBubbleCreation.current.x, activeBubbleCreation.current.y, activeBubbleCreation.current.radius);
             newBubbles.forEach(b => { b.vy = -2; b.vx = 0; bubbles.current.push(b); });
@@ -824,9 +1006,9 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             if (d < stickDist) {
                  const u = 1 - (d / stickDist); 
                  
-                 // Stronger force for trail bubbles to keep them connected (surface tension simulation)
-                 let force = 0.0005; 
-                 if (isTrailPair) force = 0.025; // Much stronger attraction for trails
+                 // DRASTICALLY REDUCED MERGING FORCE FOR SLOWER MERGING
+                 let force = 0.0001; // Base force (was 0.0005)
+                 if (isTrailPair) force = 0.002; // Trail force (was 0.025) - Slows down the "snap" effect significantly
                  
                  if (u > 0.1) {
                      const ax = (b2.x - b1.x) * force;
@@ -853,9 +1035,11 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
                     ctx.quadraticCurveTo((b1.x + b2.x)/2, (b1.y + b2.y)/2, p1b.x, p1b.y);
                     
                     ctx.globalCompositeOperation = 'overlay'; 
-                    // Make trail connections more opaque/viscous
-                    const alpha = isTrailPair ? u * 0.8 : u * 0.4;
-                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`; 
+                    // CHANGE: Reduce connection visibility for trails to match "fainter trail marks" request
+                    // Normal connection is u * 0.4. Trails were u * 0.8 (sticky). Now making them u * 0.15 (very faint)
+                    const alpha = isTrailPair ? u * 0.15 : u * 0.4;
+                    // Lower brightness from white to light grey to reduce impact further
+                    ctx.fillStyle = `rgba(220, 220, 220, ${alpha})`; 
                     ctx.fill();
                  }
             }
@@ -1159,7 +1343,15 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             playsInline
             muted
         />
-        <canvas ref={canvasRef} className="block w-full h-full" />
+        <canvas 
+            ref={canvasRef} 
+            className="block w-full h-full cursor-crosshair" 
+            onContextMenu={(e) => e.preventDefault()}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+        />
     </div>
   );
 };
