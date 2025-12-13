@@ -4,7 +4,7 @@ import { BubbleTheme, BubbleElement } from "./types";
 export const GRAVITY = 0.03; 
 export const AIR_RESISTANCE = 0.99; // Restored original drag
 export const BUBBLE_SPAWN_RATE = 50;
-export const MAX_BUBBLES = 35; // Restored original limit
+export const MAX_BUBBLES = 60; // Increased for fluid trails
 export const INTERACTION_RADIUS_MULTIPLIER = 1.2;
 
 // Interaction Thresholds

@@ -70,6 +70,7 @@ export interface Bubble {
   rotation: number;
   rotationSpeed: number;
   creationTime: number; // Timestamp for spawn protection
+  isTrail?: boolean; // Distinguish trails from main bubbles
 }
 
 export interface HandData {

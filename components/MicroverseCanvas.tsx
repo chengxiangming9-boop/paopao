@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { getHandLandmarker, initializeVision } from '../services/vision';
 import { Bubble, BubbleTheme, BubbleElement, BubbleState, HandData, Particle, Vector2, GestureType } from '../types';
@@ -48,7 +49,8 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
       landmarks: Vector2[], 
       center: Vector2, 
       velocity: Vector2,
-      gestureHistory: GestureType[] 
+      gestureHistory: GestureType[],
+      lastTrailPos?: Vector2
   }>>(new Map());
   
   // Interaction Logic
@@ -80,7 +82,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
       }
   };
 
-  const createBubble = (x: number, y: number, r: number | null = null, vx: number = 0, vy: number = 0): Bubble[] => {
+  const createBubble = (x: number, y: number, r: number | null = null, vx: number = 0, vy: number = 0, isTrail: boolean = false): Bubble[] => {
     const themes = Object.values(BubbleTheme);
     const theme = themes[Math.floor(Math.random() * themes.length)];
     
@@ -107,7 +109,8 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
       mass: radius * radius,
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: randomRange(-0.02, 0.02),
-      creationTime: Date.now()
+      creationTime: Date.now(),
+      isTrail // Set the trail flag
     };
 
     const newBubbles = [mainBubble];
@@ -128,7 +131,8 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
                 vy: mainBubble.vy + randomRange(-0.1, 0.1),
                 mass: smallR * smallR,
                 contentSeed: Math.random(),
-                creationTime: Date.now()
+                creationTime: Date.now(),
+                isTrail // Inherit trail status
             });
         }
     }
@@ -215,7 +219,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     }
 
     // ... Standard effects ...
-    const count = type === 'SHATTER' ? 30 : (type === 'EVAPORATE' ? 40 : 25);
+    const count = type === 'SHATTER' ? 30 : (type === 'EVAPORATE' ? 50 : 25);
     
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -238,12 +242,20 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             color = 'rgba(230, 250, 255, 0.95)';
         } else if (type === 'MELT') {
             pType = 'LIQUID';
-            vx = randomRange(-1.5, 1.5);
-            vy = randomRange(0, 4);
+            vx = randomRange(-1.0, 1.0);
+            vy = randomRange(2, 6); // Faster initial drop
             life = randomRange(2.0, 3.5);
-            size = randomRange(3, 8);
-            stretch = randomRange(1.2, 2.5); 
+            size = randomRange(4, 9);
+            stretch = randomRange(1.5, 3.0); 
             color = `hsla(${b.hue}, 90%, 80%, 0.85)`;
+        } else if (type === 'EVAPORATE') {
+            // Anti-gravity for evaporation
+            pType = 'MIST';
+            vx = randomRange(-1.5, 1.5);
+            vy = randomRange(-1, -4); // Rise up
+            life = randomRange(1.0, 2.0);
+            size = randomRange(15, 40);
+            color = THEME_COLORS[b.theme].glow;
         } else {
             pType = 'MIST';
             vy = randomRange(-2, -5); 
@@ -273,25 +285,12 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
-    // Determine color scheme based on gesture
-    let baseHue = 180; // Cyan (Default)
-    let saturation = '100%';
-    let lightness = '70%';
-    let glowColor = 'rgba(0, 255, 255, 0.4)';
+    // Fluorescent Bright Light Blue (Electric Cyan)
+    const FLUORESCENT_BLUE = '#00FFFF'; // Intense Cyan
+    const BRIGHT_CORE = '#F0FFFF'; // Near White for the core
 
-    if (hand.gesture === GestureType.FIST) {
-        baseHue = 0; // Red
-        glowColor = 'rgba(255, 50, 50, 0.5)';
-    } else if (hand.gesture === GestureType.PINCH) {
-        baseHue = 45; // Gold
-        glowColor = 'rgba(255, 200, 0, 0.5)';
-    } else if (hand.gesture === GestureType.POINT) {
-        baseHue = 280; // Purple
-        glowColor = 'rgba(200, 50, 255, 0.5)';
-    }
-
-    const boneColor = `hsla(${baseHue}, ${saturation}, ${lightness}, 0.6)`;
-    const jointColor = `hsla(${baseHue}, ${saturation}, 90%, 0.9)`;
+    // Use source-over for cleaner edges (less ghostly smear)
+    ctx.globalCompositeOperation = 'source-over'; 
 
     // Connections
     const connections = [
@@ -299,10 +298,11 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
         [5,9,13,17], [0,5], [0,17] // Palm connections
     ];
 
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = glowColor;
-    ctx.strokeStyle = boneColor;
-    ctx.lineWidth = 2;
+    // Glow Effect for Bones - Reduced Blur to prevent "smearing" look
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = FLUORESCENT_BLUE;
+    ctx.strokeStyle = FLUORESCENT_BLUE;
+    ctx.lineWidth = 2; 
 
     // Draw Bones
     connections.forEach(chain => {
@@ -320,22 +320,20 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
         ctx.stroke();
     });
 
-    // Draw Joints - ALL joints now visible
-    ctx.fillStyle = jointColor;
-    ctx.shadowBlur = 15;
+    // Draw Joints - Intense bright core
+    ctx.fillStyle = BRIGHT_CORE;
+    ctx.shadowBlur = 20; 
+    ctx.shadowColor = FLUORESCENT_BLUE;
+    
     hand.landmarks.forEach((lm, index) => {
         ctx.beginPath();
-        const r = (index === 0) ? 6 : 3.5; 
+        const r = (index === 0) ? 7 : 5; 
         ctx.arc(lm.x * ctx.canvas.width, lm.y * ctx.canvas.height, r, 0, Math.PI * 2);
         ctx.fill();
     });
     
-    // Draw Gesture Label
-    ctx.font = 'bold 14px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.shadowColor = 'black';
-    ctx.shadowBlur = 4;
-    ctx.fillText(hand.gesture, hand.center.x + 30, hand.center.y);
+    // Removed gesture text label to prevent "marks"/clutter
+    // ctx.fillText(hand.gesture, ...) 
 
     // Special Effects per Gesture
     if (hand.gesture === GestureType.FIST) {
@@ -351,18 +349,14 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     } else if (hand.gesture === GestureType.PINCH) {
         const thumb = hand.landmarks[THUMB_TIP];
         const index = hand.landmarks[INDEX_TIP];
-        ctx.beginPath();
-        ctx.strokeStyle = '#FFFF00';
-        ctx.lineWidth = 3;
-        ctx.moveTo(thumb.x * ctx.canvas.width, thumb.y * ctx.canvas.height);
-        ctx.lineTo(index.x * ctx.canvas.width, index.y * ctx.canvas.height);
-        ctx.stroke();
-        
         const cx = (thumb.x + index.x) / 2 * ctx.canvas.width;
         const cy = (thumb.y + index.y) / 2 * ctx.canvas.height;
+        
         ctx.beginPath();
         ctx.fillStyle = '#FFFFFF';
-        ctx.arc(cx, cy, 6, 0, Math.PI*2);
+        ctx.shadowColor = '#FFFF00';
+        ctx.shadowBlur = 20;
+        ctx.arc(cx, cy, 8, 0, Math.PI*2);
         ctx.fill();
     }
     
@@ -373,9 +367,13 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     ctx.save();
     ctx.translate(b.x, b.y);
 
+    // RESTORED: Default full opacity for all bubbles, including trails
+    ctx.globalAlpha = 1.0;
+
     const time = frameCount.current * 0.02;
     const wobbleFactor = b.state === BubbleState.FROZEN ? 0 : 0.8;
 
+    // Main Bubble Shape
     ctx.beginPath();
     const segments = 60;
     for (let i = 0; i <= segments; i++) {
@@ -451,34 +449,72 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     ctx.fill();
     ctx.restore();
 
+    // IMPROVED ICE EFFECT: Crystal Fractal Patterns
     if (b.state === BubbleState.FROZEN) {
         ctx.save();
         ctx.clip(); 
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 1.5;
-        const growth = b.stateTimer;
         
-        const seeds = 8;
+        ctx.globalCompositeOperation = 'screen';
+        ctx.strokeStyle = 'rgba(220, 255, 255, 0.9)'; // Brighter ice
+        ctx.lineCap = 'butt';
+        
+        const growth = Math.min(b.stateTimer, 1.0);
+        const seeds = 6; // Number of main crystal branches
+        
         for (let i = 0; i < seeds; i++) {
             ctx.save();
-            const angle = (i / seeds) * Math.PI * 2 + b.rotation;
+            const angle = (i / seeds) * Math.PI * 2 + b.rotation + b.contentSeed;
             ctx.rotate(angle);
-            const len = b.radius * 1.8 * growth;
             
+            const len = b.radius * 2.0 * growth;
+            ctx.lineWidth = 2 * (1 - growth * 0.5);
+            
+            // Main Branch
             ctx.beginPath();
             ctx.moveTo(0,0);
-            ctx.lineTo(len, 0);
-            if (len > b.radius * 0.5) {
-                ctx.moveTo(len * 0.5, 0); ctx.lineTo(len * 0.8, len * 0.2);
-                ctx.moveTo(len * 0.5, 0); ctx.lineTo(len * 0.8, -len * 0.2);
+            
+            // Jagged path for realism
+            let currR = 0;
+            const zigStep = 10;
+            while(currR < len) {
+                currR += zigStep;
+                const jitter = (Math.random() - 0.5) * 5;
+                ctx.lineTo(currR, jitter);
             }
             ctx.stroke();
+
+            // Sub-branches (Fractal look)
+            if (len > b.radius * 0.3) {
+                const subBranches = 4;
+                for(let j=1; j<=subBranches; j++) {
+                    const distAlong = len * (j/subBranches);
+                    ctx.save();
+                    ctx.translate(distAlong, 0);
+                    ctx.rotate(Math.PI / 3); // 60 degrees
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(len * 0.3 * (1 - j/subBranches), 0);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    ctx.save();
+                    ctx.translate(distAlong, 0);
+                    ctx.rotate(-Math.PI / 3); // -60 degrees
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(len * 0.3 * (1 - j/subBranches), 0);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
             ctx.restore();
         }
         
-        ctx.fillStyle = `rgba(220, 240, 255, ${growth * 0.4})`;
+        // Frosted Overlay
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = `rgba(200, 240, 255, ${growth * 0.6})`;
         ctx.fill();
+        
         ctx.restore();
     }
 
@@ -524,7 +560,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
           return GestureType.FIST;
       }
 
-      if (pinchDist < 30) { 
+      if (pinchDist < 50) { // High sensitivity
           return GestureType.PINCH;
       } 
       
@@ -567,7 +603,8 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
              let smoothedCenter = rawCenter;
              let smoothedVelocity = {x:0, y:0};
              let gestureHistory: GestureType[] = prev ? prev.gestureHistory : [];
-    
+             let lastTrailPos = prev?.lastTrailPos || rawCenter; // Preserve lastTrailPos
+
              if (prev) {
                  const distMoved = Math.hypot(rawCenter.x - prev.center.x, rawCenter.y - prev.center.y);
                  const alpha = Math.min(0.7, Math.max(0.15, distMoved * 0.015));
@@ -628,7 +665,8 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
                  landmarks: smoothedLandmarks, 
                  center: smoothedCenter, 
                  velocity: smoothedVelocity,
-                 gestureHistory 
+                 gestureHistory,
+                 lastTrailPos
              });
     
              return {
@@ -642,7 +680,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     lockedTarget.current = null;
     let closestDistToFinger = 9999;
 
-    handResults.current.forEach(hand => {
+    handResults.current.forEach((hand, index) => {
         drawHandSkeleton(ctx, hand);
         
         const indexTip = { x: hand.landmarks[INDEX_TIP].x * width, y: hand.landmarks[INDEX_TIP].y * height };
@@ -658,21 +696,53 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             }
         } 
 
+        // FLUID TRAIL SPAWNING LOGIC with TURBULENCE
         if (hand.gesture === GestureType.OPEN_HAND) {
-            const speed = Math.hypot(hand.velocity.x, hand.velocity.y);
-            // Restored time-based spawning
-            if (speed > 5 && frameCount.current % 4 === 0) {
-                 const offsetX = randomRange(-10, 10);
-                 const offsetY = randomRange(-10, 10);
-                 const r = randomRange(15, 35); 
-                 const trailBubble = createBubble(
-                     hand.center.x + offsetX, 
-                     hand.center.y + offsetY, 
-                     r,
-                     hand.velocity.x * 0.2, 
-                     hand.velocity.y * 0.2
-                 );
-                 bubbles.current.push(...trailBubble);
+            const prevData = prevHandData.current.get(index);
+            if (prevData && prevData.lastTrailPos) {
+                 const distMoved = dist(hand.center, prevData.lastTrailPos);
+                 // TIGHTER SPAWN STEP for sticky trail effect
+                 const spawnStep = 15; 
+                 
+                 if (distMoved > spawnStep) {
+                     const count = Math.min(Math.floor(distMoved / spawnStep), 5); // Cap per frame
+                     
+                     for (let s = 1; s <= count; s++) {
+                         if (bubbles.current.length >= MAX_BUBBLES + 10) break; // Soft limit override
+                         
+                         const t = s / count;
+                         const tx = lerp(prevData.lastTrailPos.x, hand.center.x, t);
+                         const ty = lerp(prevData.lastTrailPos.y, hand.center.y, t);
+                         
+                         const r = randomRange(15, 25); 
+                         const jitter = 5; // Reduced jitter for tighter packing
+                         
+                         // Reduced turbulence to keep line cleaner
+                         const turbulenceX = (Math.random() - 0.5) * 1.5;
+                         const turbulenceY = (Math.random() - 0.5) * 1.5;
+
+                         const trailBubble = createBubble(
+                             tx + randomRange(-jitter, jitter), 
+                             ty + randomRange(-jitter, jitter), 
+                             r,
+                             hand.velocity.x * 0.15 + turbulenceX, 
+                             hand.velocity.y * 0.15 + turbulenceY,
+                             true // IS TRAIL = TRUE
+                         );
+                         bubbles.current.push(...trailBubble);
+                     }
+                     
+                     // Update persistent position to current
+                     prevData.lastTrailPos = hand.center;
+                     prevHandData.current.set(index, prevData);
+                 }
+            }
+        } else {
+            // Reset trail position to avoid jumping lines when opening hand again
+            const prevData = prevHandData.current.get(index);
+            if (prevData) {
+                prevData.lastTrailPos = hand.center;
+                prevHandData.current.set(index, prevData);
             }
         }
 
@@ -700,7 +770,6 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
              bubbles.current.forEach(b => {
                 if (Date.now() - b.creationTime < 1500) return;
                 const d = Math.hypot(b.x - indexTip.x, b.y - indexTip.y);
-                // Restored standard hit detection range (no magnetic pull)
                 if (d < b.radius + 80 && d < closestDistToFinger) {
                     closestDistToFinger = d;
                     lockedTarget.current = { id: b.id, x: b.x, y: b.y, r: b.radius };
@@ -729,7 +798,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     }
 
     spawnTimer.current++;
-    if (spawnTimer.current > BUBBLE_SPAWN_RATE && bubbles.current.length < MAX_BUBBLES && !activeBubbleCreation.current) {
+    if (spawnTimer.current > BUBBLE_SPAWN_RATE && bubbles.current.length < 15 && !activeBubbleCreation.current) {
       const newBubbles = createBubble(randomRange(50, width-50), height + 50);
       bubbles.current.push(...newBubbles);
       spawnTimer.current = 0;
@@ -747,21 +816,28 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             
             if (Math.abs(b1.x - b2.x) > 300) continue; 
             const d = dist(b1, b2);
-            const stickDist = (b1.radius + b2.radius) * 1.5; 
+            
+            // Check if both bubbles are trails to increase "sticky" behavior
+            const isTrailPair = b1.isTrail && b2.isTrail;
+            const stickDist = (b1.radius + b2.radius) * (isTrailPair ? 1.8 : 1.6); 
             
             if (d < stickDist) {
                  const u = 1 - (d / stickDist); 
                  
-                 if (u > 0.4) {
-                     const ax = (b2.x - b1.x) * 0.001;
-                     const ay = (b2.y - b1.y) * 0.001;
+                 // Stronger force for trail bubbles to keep them connected (surface tension simulation)
+                 let force = 0.0005; 
+                 if (isTrailPair) force = 0.025; // Much stronger attraction for trails
+                 
+                 if (u > 0.1) {
+                     const ax = (b2.x - b1.x) * force;
+                     const ay = (b2.y - b1.y) * force;
                      b1.vx += ax; b1.vy += ay;
                      b2.vx -= ax; b2.vy -= ay;
                  }
 
-                 if (d > (b1.radius + b2.radius) * 0.5) { 
+                 if (d > (b1.radius + b2.radius) * 0.4) { 
                     const angle = Math.atan2(b2.y - b1.y, b2.x - b1.x);
-                    const spread = 0.5 + u * 0.5; 
+                    const spread = 0.5 + u * 0.6; // Thicker connections
                     const angleOff1 = Math.acos(Math.min(b1.radius * 0.8 / d, 1)) * spread; 
                     const angleOff2 = Math.acos(Math.min(b2.radius * 0.8 / d, 1)) * spread;
 
@@ -777,7 +853,9 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
                     ctx.quadraticCurveTo((b1.x + b2.x)/2, (b1.y + b2.y)/2, p1b.x, p1b.y);
                     
                     ctx.globalCompositeOperation = 'overlay'; 
-                    ctx.fillStyle = `rgba(255, 255, 255, ${u * 0.2})`; 
+                    // Make trail connections more opaque/viscous
+                    const alpha = isTrailPair ? u * 0.8 : u * 0.4;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`; 
                     ctx.fill();
                  }
             }
@@ -918,7 +996,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
         if (p.onGround) {
             p.life -= 0.01; 
             p.size += 0.05;
-            p.stretch = 0.2; 
+            p.stretch = 0.2; // Flatten out on ground
         } else {
             // Decay based on maxLife ratio
             p.life -= (1.0 / p.maxLife) * 0.02;
@@ -932,7 +1010,14 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
         }
 
         ctx.save();
-        ctx.globalAlpha = p.life / p.maxLife; // Smooth fade based on initial life
+        
+        // MIST PARTICLES: Rising diffusion
+        if (p.type === 'MIST') {
+             ctx.globalAlpha = (p.life / p.maxLife) * 0.5;
+        } else {
+             ctx.globalAlpha = p.life / p.maxLife;
+        }
+
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rotation);
         
@@ -982,8 +1067,10 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             
             ctx.beginPath();
             if (p.onGround) {
+                // Puddle effect
                 ctx.ellipse(0, 0, p.size * 2, p.size * 0.5, 0, 0, Math.PI*2);
             } else {
+                // Teardrop shape
                 ctx.moveTo(0, -s * stretch);
                 ctx.bezierCurveTo(s, -s * 0.5, s, s, 0, s);
                 ctx.bezierCurveTo(-s, s, -s, -s * 0.5, 0, -s * stretch);
@@ -1005,7 +1092,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
 
         } else if (p.type === 'MIST') {
             ctx.globalCompositeOperation = 'screen';
-            ctx.filter = 'blur(12px)';
+            ctx.filter = 'blur(16px)'; // Softer blur for evaporation
             ctx.fillStyle = p.color;
             ctx.beginPath();
             ctx.arc(0, 0, p.size, 0, Math.PI*2);

@@ -35,14 +35,14 @@ function App() {
       <div 
         className="absolute inset-0 z-10 pointer-events-none transition-all duration-700 ease-out backdrop-blur-sm"
         style={{
-            opacity: expansionTheme ? 0.3 : 0,
+            opacity: expansionTheme ? 0.12 : 0, // Reduced opacity for fainter imprint
             backgroundColor: expansionTheme ? `hsl(${THEME_COLORS[expansionTheme].main})` : 'transparent',
             mixBlendMode: 'screen'
         }}
       />
       {expansionTheme && (
          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none animate-pulse">
-            <h1 className="text-6xl font-thin tracking-[0.5em] uppercase text-white opacity-60 blur-sm scale-150 transition-transform duration-500">
+            <h1 className="text-6xl font-thin tracking-[0.5em] uppercase text-white opacity-40 blur-sm scale-150 transition-transform duration-500">
                 {expansionTheme}
             </h1>
          </div>
