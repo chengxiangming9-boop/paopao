@@ -386,27 +386,32 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
       mouseRef.current.y = -1000;
   };
 
-  // --- VISUALIZATION: Holographic Constellation ---
+  // --- VISUALIZATION: Holographic Skeleton ---
   const drawHandSkeleton = (ctx: CanvasRenderingContext2D, hand: HandData) => {
     ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     
-    const time = frameCount.current * 0.1;
-    
-    // VISUAL STYLE: QUANTUM CONSTELLATION
-    // Stars connected by energy threads
-    
-    const STAR_COLOR = '#FFFFFF';
-    const ENERGY_COLOR = 'rgba(100, 220, 255, 0.4)';
-    const PULSE_COLOR = 'rgba(100, 255, 200, 0.8)';
+    // Fluorescent Bright Light Blue (Electric Cyan)
+    const FLUORESCENT_BLUE = '#00FFFF'; // Intense Cyan
+    const BRIGHT_CORE = '#F0FFFF'; // Near White for the core
 
-    ctx.globalCompositeOperation = 'screen'; 
+    // Use source-over for cleaner edges (less ghostly smear)
+    ctx.globalCompositeOperation = 'source-over'; 
 
-    // Connections (Energy Threads)
+    // Connections
     const connections = [
         [0,1,2,3,4], [0,5,6,7,8], [0,9,10,11,12], [0,13,14,15,16], [0,17,18,19,20],
-        [5,9,13,17], [0,5], [0,17] 
+        [5,9,13,17], [0,5], [0,17] // Palm connections
     ];
 
+    // Glow Effect for Bones
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = FLUORESCENT_BLUE;
+    ctx.strokeStyle = FLUORESCENT_BLUE;
+    ctx.lineWidth = 2; 
+
+    // Draw Bones
     connections.forEach(chain => {
         ctx.beginPath();
         for(let i = 0; i < chain.length - 1; i++) {
@@ -419,68 +424,45 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
         }
-        
-        // Base Line
-        ctx.shadowBlur = 0;
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = ENERGY_COLOR;
-        ctx.setLineDash([]);
         ctx.stroke();
-
-        // Flowing Energy Pulse
-        ctx.beginPath();
-        ctx.strokeStyle = PULSE_COLOR;
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = PULSE_COLOR;
-        ctx.setLineDash([5, 15]); // Short dashes
-        ctx.lineDashOffset = -time * 5; // Fast flow
-        ctx.stroke(); // Draw over same path
     });
 
-    ctx.setLineDash([]);
-
-    // Draw Joints (Stars)
-    hand.landmarks.forEach((lm, index) => {
-        const x = lm.x * ctx.canvas.width;
-        const y = lm.y * ctx.canvas.height;
-        
-        // Star Core
-        ctx.beginPath();
-        const r = (index === 0) ? 4 : 2.5; 
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = STAR_COLOR;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#FFFFFF';
-        ctx.fill();
-
-        // Twinkle (Random rotation/scale for visual interest)
-        const twinkle = Math.sin(time + index * 10) * 0.5 + 0.5;
-        if (twinkle > 0.8) {
-            ctx.beginPath();
-            ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
-            ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${twinkle * 0.5})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-    });
+    // Draw Joints - Intense bright core
+    ctx.fillStyle = BRIGHT_CORE;
+    ctx.shadowBlur = 20; 
+    ctx.shadowColor = FLUORESCENT_BLUE;
     
+    hand.landmarks.forEach((lm, index) => {
+        ctx.beginPath();
+        const r = (index === 0) ? 7 : 5; 
+        ctx.arc(lm.x * ctx.canvas.width, lm.y * ctx.canvas.height, r, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
     // Special Effects per Gesture
     if (hand.gesture === GestureType.FIST) {
         ctx.beginPath();
-        // Force Field ripple
-        ctx.strokeStyle = `rgba(255, 100, 150, 0.4)`;
-        ctx.lineWidth = 1;
-        const pulse = (time * 5) % 30;
-        ctx.arc(hand.center.x, hand.center.y, 80 + pulse, 0, Math.PI*2);
+        ctx.strokeStyle = `hsla(0, 100%, 70%, 0.3)`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        const time = frameCount.current * 0.1;
+        const pulse = Math.sin(time) * 10;
+        ctx.arc(hand.center.x, hand.center.y, 100 + pulse, 0, Math.PI*2);
         ctx.stroke();
+        ctx.setLineDash([]);
+    } else if (hand.gesture === GestureType.PINCH) {
+        const thumb = hand.landmarks[THUMB_TIP];
+        const index = hand.landmarks[INDEX_TIP];
+        const cx = (thumb.x + index.x) / 2 * ctx.canvas.width;
+        const cy = (thumb.y + index.y) / 2 * ctx.canvas.height;
         
         ctx.beginPath();
-        ctx.arc(hand.center.x, hand.center.y, 100 + pulse, 0, Math.PI*2);
-        ctx.strokeStyle = `rgba(255, 100, 150, 0.2)`;
-        ctx.stroke();
-    } 
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowColor = '#FFFF00';
+        ctx.shadowBlur = 20;
+        ctx.arc(cx, cy, 8, 0, Math.PI*2);
+        ctx.fill();
+    }
     
     ctx.restore();
   };
@@ -489,6 +471,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     ctx.save();
     ctx.translate(b.x, b.y);
 
+    // RESTORED: Default full opacity for all bubbles, including trails
     ctx.globalAlpha = 1.0;
 
     const time = frameCount.current * 0.02;
@@ -496,7 +479,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
 
     // Main Bubble Shape
     ctx.beginPath();
-    const segments = 60; 
+    const segments = 60; // RESTORED HIGH FIDELITY
     for (let i = 0; i <= segments; i++) {
         const theta = (i / segments) * Math.PI * 2;
         const n1 = noise(Math.cos(theta), Math.sin(theta), time + b.rotation) * 0.03;
@@ -509,48 +492,32 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     }
     ctx.closePath();
 
-    // 1. Subtle Fill (Glass body)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
     ctx.fill();
     
+    // RESTORED: Clipping for high quality glass effect
     ctx.save();
     ctx.clip();
 
-    // 2. Chromatic Aberration / Iridescence
-    // Instead of a simple oil slick, we simulate separation of colors at the rim
+    const rimGrad = ctx.createRadialGradient(0,0, b.radius * 0.4, 0,0, b.radius);
+    rimGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    rimGrad.addColorStop(0.7, `hsla(${b.hue}, 80%, 50%, 0.1)`);
+    rimGrad.addColorStop(0.92, `hsla(${b.hue}, 90%, 60%, 0.6)`); 
+    rimGrad.addColorStop(1, `hsla(${b.hue}, 100%, 80%, 0.8)`); 
     
-    ctx.globalCompositeOperation = 'screen';
-    
-    // Cyan Rim Shift
-    ctx.save();
-    ctx.translate(2, 2);
-    const cyanGrad = ctx.createRadialGradient(0,0, b.radius * 0.6, 0,0, b.radius);
-    cyanGrad.addColorStop(0, 'transparent');
-    cyanGrad.addColorStop(1, 'rgba(0, 255, 255, 0.4)');
-    ctx.fillStyle = cyanGrad;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = rimGrad;
     ctx.fill();
-    ctx.restore();
 
-    // Magenta Rim Shift
-    ctx.save();
-    ctx.translate(-2, -2);
-    const magGrad = ctx.createRadialGradient(0,0, b.radius * 0.6, 0,0, b.radius);
-    magGrad.addColorStop(0, 'transparent');
-    magGrad.addColorStop(1, 'rgba(255, 0, 255, 0.4)');
-    ctx.fillStyle = magGrad;
-    ctx.fill();
-    ctx.restore();
-
-    // 3. Fluid Surface (The "Oil") - Rotates
     ctx.globalCompositeOperation = 'overlay'; 
     ctx.save();
     ctx.rotate(time * 0.2 + b.rotation); 
-    ctx.scale(1.2, 1.2); 
+    ctx.scale(1.5, 1.5); 
     
     const oilGrad = ctx.createLinearGradient(-b.radius, -b.radius, b.radius, b.radius);
-    oilGrad.addColorStop(0, `hsla(${b.hue - 20}, 90%, 60%, 0.3)`);
-    oilGrad.addColorStop(0.5, `hsla(${b.hue + 20}, 90%, 60%, 0.3)`);
-    oilGrad.addColorStop(1, `hsla(${b.hue}, 90%, 50%, 0.3)`);
+    oilGrad.addColorStop(0, `hsla(${b.hue - 40}, 100%, 50%, 0.5)`);
+    oilGrad.addColorStop(0.5, `hsla(${b.hue + 40}, 100%, 50%, 0.5)`);
+    oilGrad.addColorStop(1, `hsla(${b.hue}, 100%, 40%, 0.5)`);
     
     ctx.fillStyle = oilGrad;
     ctx.fill();
@@ -558,59 +525,60 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     
     ctx.restore(); 
 
-    // 4. Sharp Rim Line
     ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = `hsla(${b.hue}, 50%, 90%, 0.3)`;
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = `hsla(${b.hue}, 100%, 90%, 0.4)`;
+    ctx.lineWidth = 1;
     ctx.stroke();
 
-    // 5. Specular Highlights (Softbox style reflection)
     ctx.globalCompositeOperation = 'lighter';
     
     ctx.save();
-    ctx.translate(-b.radius * 0.35, -b.radius * 0.35);
+    ctx.translate(-b.radius * 0.4, -b.radius * 0.45);
     ctx.rotate(-Math.PI / 4);
     
     ctx.beginPath();
-    // Rectangular softbox highlight, curved
-    ctx.ellipse(0, 0, b.radius * 0.3, b.radius * 0.15, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.filter = 'blur(4px)'; // Soften the highlight
-    ctx.fill();
-    ctx.filter = 'none';
-    
-    // Core hot spot inside
-    ctx.beginPath();
-    ctx.ellipse(0, 0, b.radius * 0.15, b.radius * 0.05, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.ellipse(0, 0, b.radius * 0.25, b.radius * 0.15, 0, 0, Math.PI * 2);
+    const highlightGrad = ctx.createRadialGradient(0,0,0, 0,0, b.radius*0.25);
+    highlightGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    highlightGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
+    highlightGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = highlightGrad;
     ctx.fill();
     ctx.restore();
 
-    // Small secondary highlight
     ctx.save();
-    ctx.translate(b.radius * 0.35, b.radius * 0.35);
+    ctx.translate(b.radius * 0.4, b.radius * 0.4);
     ctx.beginPath();
-    ctx.arc(0, 0, b.radius * 0.05, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.arc(0, 0, b.radius * 0.08, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.fill();
     ctx.restore();
 
-    // ICE EFFECT
+    // IMPROVED ICE EFFECT: Crystal Fractal Patterns
     if (b.state === BubbleState.FROZEN) {
         ctx.save();
         ctx.clip(); 
+        
         ctx.globalCompositeOperation = 'screen';
-        ctx.strokeStyle = 'rgba(220, 255, 255, 0.9)';
+        ctx.strokeStyle = 'rgba(220, 255, 255, 0.9)'; // Brighter ice
+        ctx.lineCap = 'butt';
+        
         const growth = Math.min(b.stateTimer, 1.0);
-        const seeds = 6;
+        const seeds = 6; // Number of main crystal branches
+        
         for (let i = 0; i < seeds; i++) {
             ctx.save();
             const angle = (i / seeds) * Math.PI * 2 + b.rotation + b.contentSeed;
             ctx.rotate(angle);
+            
             const len = b.radius * 2.0 * growth;
             ctx.lineWidth = 2 * (1 - growth * 0.5);
+            
+            // Main Branch
             ctx.beginPath();
             ctx.moveTo(0,0);
+            
+            // Jagged path for realism
             let currR = 0;
             const zigStep = 10;
             while(currR < len) {
@@ -619,8 +587,39 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
                 ctx.lineTo(currR, jitter);
             }
             ctx.stroke();
+
+            // Sub-branches (Fractal look)
+            if (len > b.radius * 0.3) {
+                const subBranches = 4;
+                for(let j=1; j<=subBranches; j++) {
+                    const distAlong = len * (j/subBranches);
+                    ctx.save();
+                    ctx.translate(distAlong, 0);
+                    ctx.rotate(Math.PI / 3); // 60 degrees
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(len * 0.3 * (1 - j/subBranches), 0);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    ctx.save();
+                    ctx.translate(distAlong, 0);
+                    ctx.rotate(-Math.PI / 3); // -60 degrees
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(len * 0.3 * (1 - j/subBranches), 0);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
             ctx.restore();
         }
+        
+        // Frosted Overlay
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = `rgba(200, 240, 255, ${growth * 0.6})`;
+        ctx.fill();
+        
         ctx.restore();
     }
 
@@ -643,39 +642,9 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     ctx.restore();
   };
 
-  const drawNebulaBackground = (ctx: CanvasRenderingContext2D, width: number, height: number, time: number) => {
-      // Base: Deep Midnight Blue
-      ctx.fillStyle = '#050510'; 
+  const drawBokehBackground = (ctx: CanvasRenderingContext2D, width: number, height: number, time: number) => {
+      ctx.fillStyle = '#020203'; 
       ctx.fillRect(0, 0, width, height);
-      
-      ctx.globalCompositeOperation = 'screen';
-      
-      // Moving Nebula Cloud 1 (Purple/Blue)
-      const x1 = Math.sin(time * 0.2) * (width * 0.3) + width * 0.2;
-      const y1 = Math.cos(time * 0.3) * (height * 0.2) + height * 0.7;
-      const r1 = width * 0.8;
-      
-      const g1 = ctx.createRadialGradient(x1, y1, 0, x1, y1, r1);
-      g1.addColorStop(0, 'rgba(60, 20, 100, 0.15)'); // Deep Purple
-      g1.addColorStop(1, 'transparent');
-      
-      ctx.fillStyle = g1;
-      ctx.fillRect(0, 0, width, height);
-
-      // Moving Nebula Cloud 2 (Cyan/Teal - Subtle)
-      const x2 = Math.cos(time * 0.25) * (width * 0.3) + width * 0.8;
-      const y2 = Math.sin(time * 0.15) * (height * 0.2) + height * 0.3;
-      const r2 = width * 0.9;
-
-      const g2 = ctx.createRadialGradient(x2, y2, 0, x2, y2, r2);
-      g2.addColorStop(0, 'rgba(0, 40, 60, 0.12)'); // Dark Cyan
-      g2.addColorStop(1, 'transparent');
-
-      ctx.fillStyle = g2;
-      ctx.fillRect(0, 0, width, height);
-
-      // Reset
-      ctx.globalCompositeOperation = 'source-over';
   };
 
   const determineGesture = (hand: HandData, width: number, height: number): GestureType => {
@@ -747,8 +716,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     // Grab current time once for calculations
     const now = Date.now();
 
-    // VISUAL UPGRADE: Use new Nebula Background
-    drawNebulaBackground(ctx, width, height, time * 0.0005);
+    drawBokehBackground(ctx, width, height, time * 0.001);
 
     const handLandmarker = getHandLandmarker();
     if (handLandmarker && videoRef.current && videoRef.current.readyState >= 2) {
