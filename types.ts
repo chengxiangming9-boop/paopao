@@ -35,6 +35,12 @@ export enum GestureType {
   FIST = 'FIST'            // Closed hand
 }
 
+export enum VisualMode {
+  HOLO = 'HOLO',   // Dark, Neon, Glassy (Original)
+  INK = 'INK',     // Light, Black Ink, Paper texture
+  RETRO = 'RETRO'  // Dark, Grid, Wireframe, Glitch
+}
+
 export interface Vector2 {
   x: number;
   y: number;
@@ -84,7 +90,7 @@ export interface HandData {
 }
 
 export interface AppMode {
-  id: 'MEDITATION' | 'LAB' | 'ARTIST';
+  id: VisualMode;
   name: string;
   description: string;
 }
