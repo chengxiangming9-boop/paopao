@@ -29,6 +29,36 @@ interface ExtendedParticle extends Particle {
 // History buffer size for gesture stabilization. 
 const GESTURE_HISTORY_SIZE = 4;
 
+// --- RETRO GEOMETRY CONSTANTS ---
+const PHI = (1 + Math.sqrt(5)) / 2;
+
+// Icosahedron Vertices & Edges
+const ICO_VERTS = [
+    [0, 1, PHI], [0, -1, PHI], [0, 1, -PHI], [0, -1, -PHI],
+    [1, PHI, 0], [-1, PHI, 0], [1, -PHI, 0], [-1, -PHI, 0],
+    [PHI, 0, 1], [PHI, 0, -1], [-PHI, 0, 1], [-PHI, 0, -1]
+];
+const ICO_EDGES = [
+    [0,1], [0,4], [0,5], [0,8], [0,10],
+    [1,6], [1,7], [1,8], [1,10],
+    [2,3], [2,4], [2,5], [2,9], [2,11],
+    [3,6], [3,7], [3,9], [3,11],
+    [4,5], [4,8], [4,9],
+    [5,10], [5,11],
+    [6,7], [6,8], [6,9],
+    [7,10], [7,11],
+    [8,9],
+    [10,11]
+];
+
+// Tetrahedron Vertices & Edges
+const TETRA_VERTS = [
+    [1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]
+];
+const TETRA_EDGES = [
+    [0,1], [0,2], [0,3], [1,2], [1,3], [2,3]
+];
+
 const determineGesture = (hand: HandData, width: number, height: number): GestureType => {
     const { landmarks } = hand;
     const wrist = landmarks[WRIST];
@@ -80,7 +110,19 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
   const handResults = useRef<HandData[]>([]);
   
   // Mouse Interaction State
-  const mouseRef = useRef({
+  const mouseRef = useRef<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      isDown: boolean;
+      isRightDown: boolean;
+      startX: number;
+      startY: number;
+      isDragging: boolean;
+      downTime: number;
+      interactionTarget: string | null; // ID of bubble being clicked
+  }>({
       x: -1000,
       y: -1000,
       vx: 0,
@@ -90,7 +132,8 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
       startX: 0,
       startY: 0,
       isDragging: false,
-      downTime: 0
+      downTime: 0,
+      interactionTarget: null
   });
   const mouseTrailRef = useRef<{x: number, y: number} | null>(null);
   
@@ -130,9 +173,6 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
   // Helpers
   const randomRange = (min: number, max: number) => Math.random() * (max - min) + min;
   const dist = (p1: Vector2, p2: Vector2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
-  const dist3D = (p1: {x:number, y:number, z:number}, p2: {x:number, y:number, z:number}) => {
-      return Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
-  };
   
   const noise = (x: number, y: number, t: number) => {
       return Math.sin(x * 4.0 + t) * Math.cos(y * 3.5 + t * 0.5) * 0.5 + 
@@ -443,64 +483,101 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
         }
 
     } else if (mode === VisualMode.RETRO) {
-        // --- RETRO MODE: Rotating Wireframe Sphere ---
+        // --- RETRO MODE: Geometric Shapes (Sphere, Tetrahedron, Icosahedron) ---
         const rotX = time + b.rotation;
         const rotY = b.contentSeed * 10 + time * 0.5;
+
+        // Shape Selection: 0=Sphere, 1=Tetrahedron, 2=Icosahedron
+        const shapeSeed = Math.floor(b.contentSeed * 999);
+        const shapeType = shapeSeed % 3; 
 
         ctx.strokeStyle = `hsl(${b.hue}, 100%, 60%)`;
         ctx.lineWidth = 1.5;
         ctx.shadowBlur = 5;
         ctx.shadowColor = `hsl(${b.hue}, 100%, 50%)`;
+        ctx.fillStyle = 'rgba(0,0,0,0.85)'; // Occlude background
 
-        // Draw Sphere Outline
-        ctx.beginPath();
-        ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.8)'; // Occlude background lines
-        ctx.fill();
-        ctx.stroke();
-
-        // Draw Wireframe (Latitudes/Longitudes)
-        ctx.beginPath();
-        
         // 3D Projection Helper
         const project = (px: number, py: number, pz: number) => {
-             // Simple rotation matrix application
-             // Rotate around Y
+             // Rotate Y
              let x = px * Math.cos(rotY) - pz * Math.sin(rotY);
              let z = px * Math.sin(rotY) + pz * Math.cos(rotY);
-             // Rotate around X
+             // Rotate X
              let y = py * Math.cos(rotX) - z * Math.sin(rotX);
-             // z = py * Math.sin(rotX) + z * Math.cos(rotX);
+             // z = py * Math.sin(rotX) + z * Math.cos(rotX); // Z depth unused for now
              return { x, y };
         };
 
-        const steps = 8;
-        // Longitudes
-        for (let i = 0; i < steps; i++) {
-             const phi = (i / steps) * Math.PI;
-             for (let j = 0; j <= 20; j++) {
-                 const theta = (j / 20) * Math.PI * 2;
-                 const px = b.radius * Math.sin(phi) * Math.cos(theta);
-                 const py = b.radius * Math.cos(phi);
-                 const pz = b.radius * Math.sin(phi) * Math.sin(theta);
-                 const p = project(px, py, pz);
-                 if (j===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
-             }
+        if (shapeType === 0) {
+            // SPHERE (Lat/Long Wireframe)
+            ctx.beginPath();
+            ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+            ctx.fill(); // Fill black to hide grid behind
+            ctx.stroke();
+
+            ctx.beginPath();
+            const steps = 8;
+            // Longitudes
+            for (let i = 0; i < steps; i++) {
+                 const phi = (i / steps) * Math.PI;
+                 for (let j = 0; j <= 20; j++) {
+                     const theta = (j / 20) * Math.PI * 2;
+                     const px = b.radius * Math.sin(phi) * Math.cos(theta);
+                     const py = b.radius * Math.cos(phi);
+                     const pz = b.radius * Math.sin(phi) * Math.sin(theta);
+                     const p = project(px, py, pz);
+                     if (j===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+                 }
+            }
+            // Latitudes
+            for (let i = 1; i < 4; i++) {
+                 const rRing = b.radius * Math.sin((i/4) * Math.PI);
+                 const yRing = b.radius * Math.cos((i/4) * Math.PI);
+                 for (let j = 0; j <= 20; j++) {
+                     const theta = (j/20) * Math.PI * 2;
+                     const px = rRing * Math.cos(theta);
+                     const pz = rRing * Math.sin(theta);
+                     const p = project(px, yRing, pz);
+                     if (j===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+                 }
+            }
+            ctx.stroke();
+
+        } else {
+            // POLYHEDRA (Tetrahedron or Icosahedron)
+            const verts = shapeType === 1 ? TETRA_VERTS : ICO_VERTS;
+            const edges = shapeType === 1 ? TETRA_EDGES : ICO_EDGES;
+            
+            // Scale normalization (approximate to match sphere visual size)
+            // Icosahedron radius approx 1.9, Tetrahedron approx 1.73
+            const scale = b.radius / (shapeType === 1 ? 1.73 : 1.9); 
+
+            // Draw Occlusion Circle first (Simple way to hide background grid)
+            ctx.beginPath();
+            ctx.arc(0, 0, b.radius * 0.85, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Edges
+            ctx.beginPath();
+            edges.forEach(edge => {
+                const v1 = verts[edge[0]];
+                const v2 = verts[edge[1]];
+                const p1 = project(v1[0] * scale, v1[1] * scale, v1[2] * scale);
+                const p2 = project(v2[0] * scale, v2[1] * scale, v2[2] * scale);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+            });
+            ctx.stroke();
+
+            // Draw Vertices (Glowing Dots)
+            ctx.fillStyle = `hsl(${b.hue}, 100%, 90%)`;
+            verts.forEach(v => {
+                const p = project(v[0] * scale, v[1] * scale, v[2] * scale);
+                ctx.beginPath();
+                ctx.rect(p.x - 2, p.y - 2, 4, 4); // Square dots for retro feel
+                ctx.fill();
+            });
         }
-        // Latitudes (simpler for performance: just ellipses)
-        for (let i = 1; i < 4; i++) {
-             const rRing = b.radius * Math.sin((i/4) * Math.PI);
-             const yRing = b.radius * Math.cos((i/4) * Math.PI);
-             // Draw projected ring
-             for (let j = 0; j <= 20; j++) {
-                 const theta = (j/20) * Math.PI * 2;
-                 const px = rRing * Math.cos(theta);
-                 const pz = rRing * Math.sin(theta);
-                 const p = project(px, yRing, pz);
-                 if (j===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
-             }
-        }
-        ctx.stroke();
 
     } else {
         // --- HOLO MODE (DEFAULT) ---
@@ -681,6 +758,16 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     mouseRef.current.x = x;
     mouseRef.current.y = y;
     mouseRef.current.downTime = Date.now();
+    
+    // Check if clicked on a bubble
+    mouseRef.current.interactionTarget = null;
+    for (let i = bubbles.current.length - 1; i >= 0; i--) {
+        const b = bubbles.current[i];
+        if (Math.hypot(b.x - x, b.y - y) < b.radius) {
+            mouseRef.current.interactionTarget = b.id;
+            break; 
+        }
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -701,9 +788,26 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
   };
 
   const handleMouseUp = () => {
+    const { isDragging, downTime, interactionTarget, isDown, x, y } = mouseRef.current;
+    const clickDuration = Date.now() - downTime;
+
+    // Click to pop bubble logic
+    if (isDown && !isDragging && clickDuration < 300) {
+        if (interactionTarget) {
+             const idx = bubbles.current.findIndex(b => b.id === interactionTarget);
+             if (idx !== -1) {
+                 const b = bubbles.current[idx];
+                 createParticles(b, 'POPPING');
+                 bubbles.current.splice(idx, 1);
+                 onExpandUniverse(b.theme);
+             }
+        }
+    }
+
     mouseRef.current.isDown = false;
     mouseRef.current.isRightDown = false;
     mouseRef.current.isDragging = false;
+    mouseRef.current.interactionTarget = null;
   };
 
   const handleMouseLeave = () => {
@@ -712,6 +816,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     mouseRef.current.isDragging = false;
     mouseRef.current.x = -1000;
     mouseRef.current.y = -1000;
+    mouseRef.current.interactionTarget = null;
   };
 
   const update = (time: number) => {
@@ -847,17 +952,48 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
         }
 
         if (hand.gesture === GestureType.FIST) {
+            const fistRadius = 60; // Interaction zone radius for fist
             bubbles.current.forEach(b => {
                 const dx = b.x - hand.center.x;
                 const dy = b.y - hand.center.y;
                 const dist = Math.hypot(dx, dy);
-                const repelRange = 120 + b.radius;
-                if (dist < repelRange && dist > 0) {
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-                    const force = Math.pow((1 - dist / repelRange), 2) * 8.0; 
-                    b.vx += nx * force; b.vy += ny * force;
-                    b.vx *= 0.92; b.vy *= 0.92;
+                const minDist = fistRadius + b.radius;
+
+                // 1. Far Field Repulsion (Wind Effect) - Smoother approach
+                if (dist < minDist + 100 && dist > minDist) {
+                     const nx = dx / dist; const ny = dy / dist;
+                     const force = (1 - (dist - minDist) / 100) * 0.5;
+                     b.vx += nx * force; b.vy += ny * force;
+                }
+                
+                // 2. Near Field Hard Bounce (Elastic Collision)
+                if (dist < minDist) {
+                    const nx = dx / dist; 
+                    const ny = dy / dist; 
+                    
+                    // Velocity relative to normal
+                    const vDotN = b.vx * nx + b.vy * ny;
+
+                    // Only bounce if moving INTO the fist
+                    if (vDotN < 0) {
+                        const restitution = 1.6; // High bounce factor (>1 adds energy)
+                        // Reflection formula: V' = V - (1+e)(V.N)N
+                        b.vx = b.vx - (1 + restitution) * vDotN * nx;
+                        b.vy = b.vy - (1 + restitution) * vDotN * ny;
+                        
+                        // Add some chaotic spin and wobble on impact
+                        b.wobble = 1.5;
+                        b.rotationSpeed += (Math.random() - 0.5) * 0.3;
+                    } else {
+                        // If trapped inside or moving away, push out firmly
+                        b.vx += nx * 1.5;
+                        b.vy += ny * 1.5;
+                    }
+
+                    // Resolve Penetration (Teleport out of fist)
+                    const overlap = minDist - dist;
+                    b.x += nx * overlap;
+                    b.y += ny * overlap;
                 }
             });
         }
@@ -875,16 +1011,34 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
     });
 
     // MOUSE INTERACTION
-    const { x: mx, y: my, isDown, isRightDown, isDragging } = mouseRef.current;
+    const { x: mx, y: my, isDown, isRightDown, isDragging, interactionTarget, downTime } = mouseRef.current;
     if (isRightDown) {
-         bubbles.current.forEach(b => {
+        // Updated Mouse Right Click to match FIST Bounce Physics
+        const fistRadius = 60; 
+        bubbles.current.forEach(b => {
             const dx = b.x - mx; const dy = b.y - my;
             const dist = Math.hypot(dx, dy);
-            const repelRange = 120 + b.radius;
-            if (dist < repelRange && dist > 0) {
-                const nx = dx / dist; const ny = dy / dist;
-                const force = Math.pow((1 - dist / repelRange), 2) * 6.0; 
-                b.vx += nx * force; b.vy += ny * force; b.vx *= 0.95; b.vy *= 0.95;
+            const minDist = fistRadius + b.radius;
+
+            if (dist < minDist + 100 && dist > minDist) {
+                 const nx = dx / dist; const ny = dy / dist;
+                 const force = (1 - (dist - minDist) / 100) * 0.5;
+                 b.vx += nx * force; b.vy += ny * force;
+            }
+            if (dist < minDist) {
+                const nx = dx / dist; const ny = dy / dist; 
+                const vDotN = b.vx * nx + b.vy * ny;
+                if (vDotN < 0) {
+                    const restitution = 1.6; 
+                    b.vx = b.vx - (1 + restitution) * vDotN * nx;
+                    b.vy = b.vy - (1 + restitution) * vDotN * ny;
+                    b.wobble = 1.5;
+                    b.rotationSpeed += (Math.random() - 0.5) * 0.3;
+                } else {
+                    b.vx += nx * 1.5; b.vy += ny * 1.5;
+                }
+                const overlap = minDist - dist;
+                b.x += nx * overlap; b.y += ny * overlap;
             }
         });
         mouseTrailRef.current = null;
@@ -908,18 +1062,25 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
                  mouseTrailRef.current = { x: mx, y: my };
              }
         } else {
-             if (activeBubbleCreation.current) {
-                 activeBubbleCreation.current.x = mx;
-                 activeBubbleCreation.current.y = my;
-                 activeBubbleCreation.current.radius += 1.0;
-                 activeBubbleCreation.current.timer++;
+             // Long Press Logic to grow bubble (if not clicking an existing one)
+             if (!interactionTarget && Date.now() - downTime > 250) {
+                 if (!activeBubbleCreation.current) {
+                     activeBubbleCreation.current = { x: mx, y: my, radius: 10, timer: 0 };
+                 } else {
+                     activeBubbleCreation.current.x = mx;
+                     activeBubbleCreation.current.y = my;
+                     activeBubbleCreation.current.radius += 0.8; // Grow speed
+                     activeBubbleCreation.current.timer++;
+                 }
              }
         }
     }
 
     const isPinching = handResults.current.some(h => h.gesture === GestureType.PINCH);
+    // Release active bubble if not pinching and not holding mouse down for creation
+    // But keep it if it's currently being created by mouse (isDown is true)
     if (!isPinching && !isDown && activeBubbleCreation.current) {
-         if (activeBubbleCreation.current.radius > 20) {
+         if (activeBubbleCreation.current.radius > 15) {
             const newBubbles = createBubble(activeBubbleCreation.current.x, activeBubbleCreation.current.y, activeBubbleCreation.current.radius);
             newBubbles.forEach(b => { b.vy = -2; b.vx = 0; bubbles.current.push(b); });
         }
@@ -1130,7 +1291,7 @@ const MicroverseCanvas: React.FC<MicroverseCanvasProps> = ({ mode, onExpandUnive
             ctx.fill();
         } else if (p.type === 'MIST') {
             ctx.globalCompositeOperation = isInk ? 'source-over' : 'screen';
-            ctx.filter = 'blur(16px)'; 
+            ctx.filter = isInk ? 'blur(8px)' : 'blur(16px)'; 
             ctx.fillStyle = particleColor;
             ctx.beginPath(); ctx.arc(0, 0, p.size, 0, Math.PI*2); ctx.fill();
             ctx.filter = 'none';
